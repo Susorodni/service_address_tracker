@@ -4,37 +4,12 @@ Class structure of an asset used throughout the service address tracker.
 
 """
 from dataclasses import dataclass
-from enum import Enum
-
-class C2MStatus(Enum):
-    ACTIVE = "Active"
-    NOT_IN_C2M = "Not in C2M"
-    OFF = "Off"
-    DISCONNECTED = "Disconnected"
-    
-class MeterLocation(Enum):
-    BASEMENT_1 = "Basement 1"
-    BASEMENT_2 = "Basement 2"
-    BASEMENT_3 = "Basement 3"
-    BASEMENT_4 = "Basement 4"
-    BASEMENT_5 = "Basement 5"
-    BASEMENT_6 = "Basement 6"
-    BASEMENT_7 = "Basement 7"
-    BASEMENT_8 = "Basement 8"
-    PIT_0 = "Pit 0"
-    PIT_1 = "Pit 1"
-    PIT_2 = "Pit 2"
-    PIT_3 = "Pit 3"
-    PIT_4 = "Pit 4"
-    PIT_5 = "Pit 5"
-    PIT_6 = "Pit 6"
-    PIT_7 = "Pit 7"
-    PIT_8 = "Pit 8"
-    PIT_9 = "Pit 9"
+from service_address_tracker.constants import C2MStatus, MeterLocation, POTHOLE_PUBLIC_MATERIALS, INVALID_VALUES
 
 @dataclass
 class Asset:
     service_address: str
+    project_category: str
     c2m_status: C2MStatus
     c2m_date_checked: str
     material_public: str
@@ -43,6 +18,36 @@ class Asset:
     material_date_confirmation_private: str
     diameter_public: float
     diameter_private: float
-    map_indy_year_built: str
+    map_indy_year_built: int
     meter_location: MeterLocation
     meter_location_notes: str
+    
+    def needs_deletion(self) -> bool:
+        return is_invalid_value(self.project_category) or len(self.project_category) == 0
+    
+    def needs_pothole(self) -> bool:
+        return self.material_public in POTHOLE_PUBLIC_MATERIALS or (
+            self.map_indy_year_built >= 1935 and self.map_indy_year_built <= 2015
+            )
+
+    def needs_replacement(self) -> bool:
+        return self.map_indy_year_built < 1935 or (
+            is_invalid_value(self.material_public) or len(self.material_public) == 0
+            )
+
+    def needs_followup(self) -> bool:
+        return self.project_category == "maintenance" or (
+            self.map_indy_year_built > 2015
+        ) or (
+            len(self.material_date_confirmation_public) > 0
+        ) or (
+            self.c2m_status == C2MStatus.NOT_IN_C2M
+        ) or (
+            self.map_indy_year_built == -1
+        )
+        
+    def needs_fireline(self) -> bool:
+        return self.diameter_public > 2.0
+    
+def is_invalid_value(val: str) -> bool:
+    return val.lower() in INVALID_VALUES
