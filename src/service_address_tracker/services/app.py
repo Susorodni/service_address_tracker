@@ -8,7 +8,9 @@ import os
 import tkinter as tk
 from tkinter import filedialog, messagebox, Tk
 from service_address_tracker.constants import SUPPORTED_FILE_EXTENSIONS
-from service_address_tracker.services.asset_manager import build_assets
+from service_address_tracker.utils import address_sort_key
+from dataclasses import asdict
+from service_address_tracker.services.asset_manager import build_assets, sort_assets
 from pandas.errors import (
     EmptyDataError,
     ParserError
@@ -63,6 +65,7 @@ class App:
             command=self.run_import
         )
         self.run_button.pack(padx=10, pady=15)
+        self.assets = []
     
     def load_file(self) -> None:
         """
@@ -152,5 +155,44 @@ class App:
             )
             return
 
-        assets = build_assets(self.df)
-        print(assets)
+        try:
+            self.assets = build_assets(self.df)
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            return
+        # print(assets)
+        
+        try:
+            self.assets = sort_assets(self.assets)
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            return
+        # print(self.assets)
+        self.assets.sort(key=address_sort_key)
+        
+        save_path = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel Files", SUPPORTED_FILE_EXTENSIONS[0:-1])],
+            title="Save File"
+        )
+
+        if not save_path:
+            messagebox.showwarning(
+                "No file location saved",
+                "Please try again and save to a location."
+            )
+            return
+
+        # to properly save the assets as an Excel file, they first must
+        # be put into a dictionary so that it can be handled by pandas
+        export_data = [asdict(asset) for asset in self.assets]
+
+        # Once in the form of a dictionary, pandas can handle the assets
+        # and properly export as an Excel file
+        export_df = pd.DataFrame(export_data)
+        export_df.to_excel(save_path, index=False)
+
+        messagebox.showinfo(
+            "Success",
+            f"{len(self.assets)} assets imported."
+        )

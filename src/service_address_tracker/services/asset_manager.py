@@ -6,10 +6,10 @@ Created on Mon Jun 15 10:27:04 2026
 """
 
 import re
+import pandas as pd
 from service_address_tracker.models.asset import Asset
 from service_address_tracker.utils import parse_inches_2, parse_map_indy
-from service_address_tracker.constants import C2MStatus, MeterLocation
-import pandas as pd
+from service_address_tracker.constants import C2MStatus, MeterLocation, Flag, FlagReason
 
 
 def build_assets(df: pd.DataFrame) -> list[Asset]:
@@ -98,7 +98,9 @@ def build_assets(df: pd.DataFrame) -> list[Asset]:
                 ))),
                 meter_location_notes=str(r.get(
                     "Meter Location Notes"
-                ))
+                )),
+                flag=Flag.NONE,
+                flag_reason=FlagReason.NONE
                 )
             assets.append(asset)
         except Exception as e:
@@ -107,6 +109,32 @@ def build_assets(df: pd.DataFrame) -> list[Asset]:
 
 
     return assets
+
+def sort_assets(assets: list[Asset]) -> list[Asset]:
+    
+    unq_street_address = []
+    
+    for a in assets:
+        
+        is_duplicate = a.service_address in unq_street_address
+        
+        if a.needs_deletion():
+            a.flag = Flag.DELETE
+        elif a.needs_fireline():
+            a.flag = Flag.FIRE_LINE
+        elif a.needs_pothole():
+            a.flag = Flag.NEEDS_POTHOLED
+        elif a.needs_replacement():
+            a.flag = Flag.REPLACEMENT
+        elif a.needs_followup(is_duplicate):
+            a.flag = Flag.FOLLOW_UP
+        else:
+            raise ValueError("Invalid flag configuration")
+        
+        unq_street_address.append(a.service_address)
+        
+    return assets
+            
 
 def str_trim(s: str) -> str:
     return re.sub(r"\s+", "", s).lower()
