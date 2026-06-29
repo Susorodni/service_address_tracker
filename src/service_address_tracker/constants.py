@@ -54,6 +54,7 @@ class MeterLocation(Enum):
     PIT_7 = "Pit 7"
     PIT_8 = "Pit 8"
     PIT_9 = "Pit 9"
+    UNKNOWN = "Unknown"
     
 class Flag(Enum):
     FIRE_LINE = "Fire Line"

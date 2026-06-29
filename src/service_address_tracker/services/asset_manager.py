@@ -5,9 +5,10 @@ Created on Mon Jun 15 10:27:04 2026
 @author: c10265
 """
 
-
+import re
 from service_address_tracker.models.asset import Asset
-from service_address_tracker.utils import parse_inches
+from service_address_tracker.utils import parse_inches_2, parse_map_indy
+from service_address_tracker.constants import C2MStatus, MeterLocation
 import pandas as pd
 
 
@@ -46,55 +47,122 @@ def build_assets(df: pd.DataFrame) -> list[Asset]:
         ], axis=1)
 
     # Fill any public/private diameter, map indy year with -1 if a "na" value
-    df["Public Diameter"] = df["Public Diameter"].fillna(-1)
+    # df["Public Diameter"] = df["Public Diameter"].fillna(-1)
+    # df["Private Diameter"] = df["Private Diameter"].fillna(-1)
     
 
     # Removes duplicate service addresses. Does not account for duplicate
     # owner names or contact information on related, but not exact,
     # service addresses.
     records = df.to_dict("records")
-    print(records)
+    # print(records)
 
     assets = []
 
-    """ for r in records:
+    for r in records:
         try:
             asset = Asset(
-                object_id=int(r.get("OBJECTID")),
                 service_address=str(r.get("Service Address")),
-                project_number=str(r.get("Project Number")),
                 project_category=str(r.get(
                     "Type of Service Replacement (Project Category)"
                 )),
-                property_owner_name=str(r.get("Property Owner Name")),
-                property_owner_phone_number=str(r.get(
-                    "Property Owner Phone Number"
+                c2m_status=match_c2m_status(str(r.get(
+                    "C2M Status"
+                ))),
+                c2m_date_checked=str(r.get(
+                    "Date Checked in C2M"
                 )),
-                property_owner_phone_number_additional=str(r.get(
-                    "Additional Property Owner Phone"
+                material_public=str(r.get(
+                    "Public Material"
                 )),
-                property_owner_email=str(r.get("Property Owner Email")),
-                property_owner_address=str(r.get("Property Owner Address")),
-                property_owner_city_state_zip=str(r.get("City,State,ZIP")),
-                primary_tenant_name=str(r.get("Primary Tenant Name")),
-                primary_tenant_phone_number=str(r.get(
-                    "Primary Tenant Phone Number"
+                material_private=str(r.get(
+                    "Private Material"
                 )),
-                primary_tenant_email=str(r.get("Primary Tenant Email")),
-                public_diameter=parse_inches(r.get("Public Diameter")),
-                zip_code=int(r.get("Zip Code")),
-                private_property_access=str(r.get("Private Property Access")),
-                grantor_access_name_construction=str(r.get(
-                    "Grantor Access Name Construction"
+                material_date_confirmation_public=str(r.get(
+                    "Public Date of Material Confirmation"
                 )),
-                grantor_access_name_preconstruction=str(r.get(
-                    "Grantor Access Name Preconstruction"
+                material_date_confirmation_private=str(r.get(
+                    "Private Date of Material Confirmation"
                 )),
-                decliner_name=str(r.get("Name of Decliner")),
-                status=Status.TO_CONTACT
-            )
+                diameter_public=parse_inches_2(str(r.get(
+                    "Public Diameter"
+                ))),
+                diameter_private=parse_inches_2(str(r.get(
+                    "Private Diameter"
+                ))),
+                map_indy_year_built=parse_map_indy(str(r.get(
+                    "Map Indy Year Built"
+                ))),
+                meter_location=match_meter_location(str(r.get(
+                    "Meter Location"
+                ))),
+                meter_location_notes=str(r.get(
+                    "Meter Location Notes"
+                ))
+                )
             assets.append(asset)
         except Exception as e:
-            raise e """
+            print(f"Error for value {r}")
+            raise e
+
 
     return assets
+
+def str_trim(s: str) -> str:
+    return re.sub(r"\s+", "", s).lower()
+
+def match_c2m_status(s: str) -> C2MStatus:
+    s_test = str_trim(s)
+    
+    match s_test:
+        case "active":
+            return C2MStatus.ACTIVE
+        case "off":
+            return C2MStatus.OFF
+        case "disconnected":
+            return C2MStatus.DISCONNECTED
+        case _:
+            return C2MStatus.NOT_IN_C2M
+        
+def match_meter_location(s: str) -> MeterLocation:
+    s_test = str_trim(s)
+    
+    match s_test:
+        case "basement1":
+            return MeterLocation.BASEMENT_1
+        case "basement2":
+            return MeterLocation.BASEMENT_2
+        case "basement3":
+            return MeterLocation.BASEMENT_3
+        case "basement4":
+            return MeterLocation.BASEMENT_4
+        case "basement5":
+            return MeterLocation.BASEMENT_5
+        case "basement6":
+            return MeterLocation.BASEMENT_6
+        case "basement7":
+            return MeterLocation.BASEMENT_7
+        case "basement8":
+            return MeterLocation.BASEMENT_8
+        case "pit0":
+            return MeterLocation.PIT_0
+        case "pit1":
+            return MeterLocation.PIT_1
+        case "pit2":
+            return MeterLocation.PIT_2
+        case "pit3":
+            return MeterLocation.PIT_3
+        case "pit4":
+            return MeterLocation.PIT_4
+        case "pit5":
+            return MeterLocation.PIT_5
+        case "pit6":
+            return MeterLocation.PIT_6
+        case "pit7":
+            return MeterLocation.PIT_7
+        case "pit8":
+            return MeterLocation.PIT_8
+        case "pit9":
+            return MeterLocation.PIT_9
+        case _:
+            return MeterLocation.UNKNOWN

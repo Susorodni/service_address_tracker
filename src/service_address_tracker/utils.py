@@ -1,6 +1,8 @@
-from service_address_tracker.models.asset import Asset
+from service_address_tracker.models.asset import Asset, is_invalid_value
 import re
 from service_address_tracker.constants import INVALID_VALUES
+from fractions import Fraction
+import math
 
 def parse_inches(value: str) -> float:
     """
@@ -27,7 +29,9 @@ def parse_inches(value: str) -> float:
     pattern = r'^\s*(?:(\d+)\s+)?(\d+)?(?:/(\d+))?\s*$'
     match = re.match(pattern, s)
 
-    if not match:
+    if not match and value == "-1":
+        return -1
+    elif not match:
         raise ValueError(f"Invalid format: {value}")
 
     whole, num, den = match.groups()
@@ -47,6 +51,76 @@ def parse_inches(value: str) -> float:
 
     return result
 
+def parse_inches_2(value) -> float:
+    """
+    Convert inch values to float.
+
+    Valid examples:
+        '1 1/2"'  -> 1.5
+        '2"'      -> 2.0
+        '3/4"'    -> 0.75
+        '0.75'    -> 0.75
+        '1.25'    -> 1.25
+        '  1 1/2" ' -> 1.5
+
+    Invalid examples:
+        None      -> -1.0
+        ''
+        'nan'
+        'abc'
+    """
+
+    # Handle None
+    if value is None:
+        return -1.0
+
+    # Handle numeric inputs directly
+    if isinstance(value, (int, float)):
+        if isinstance(value, float) and math.isnan(value):
+            return -1.0
+        return float(value)
+
+    # Convert to string and normalize
+    s = str(value).strip()
+
+    if not s:
+        return -1.0
+
+    if s.lower() in {"nan", "none", "null", "<null>"}:
+        return -1.0
+
+    # Remove inch mark if present
+    s = s.rstrip('"').strip()
+
+    try:
+        # Mixed fraction: e.g. "1 1/2"
+        if re.fullmatch(r"\d+\s+\d+/\d+", s):
+            whole, frac = s.split()
+            return float(int(whole) + Fraction(frac))
+
+        # Simple fraction: e.g. "3/4"
+        if re.fullmatch(r"\d+/\d+", s):
+            return float(Fraction(s))
+
+        # Integer or decimal
+        if re.fullmatch(r"\d+(\.\d+)?", s):
+            return float(s)
+
+    except Exception as e:
+        raise e
+
+    return -1.0
+
+
+def parse_map_indy(value: str) -> int:
+    v = re.sub(r"\s+", "", value).lower()
+    
+    if v == "xxxx":
+        return -1
+    elif is_invalid_value(v):
+        return 0
+    else:
+        return int(v)
 
 def address_sort_key(asset: Asset) -> tuple[str, int]:
     """

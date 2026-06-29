@@ -153,4 +153,4 @@ class App:
             return
 
         assets = build_assets(self.df)
-        # print(assets)
+        print(assets)
